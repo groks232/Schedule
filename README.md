@@ -1,1 +1,1 @@
-# Shedule
+# Schedule
