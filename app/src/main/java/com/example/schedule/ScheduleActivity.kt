@@ -28,10 +28,6 @@ import org.apache.poi.ss.usermodel.*
 import org.apache.poi.ss.util.CellAddress
 import org.apache.poi.ss.util.CellRangeAddress
 
-
-
-
-
 class ScheduleActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,8 +41,7 @@ class ScheduleActivity : ComponentActivity() {
                     Column {
                         val groupName = intent.getStringExtra("groupName")
                         val groupNum = intent.getStringExtra("groupNumber")
-                        val groupFullName = "$groupName $groupNum"
-                        InterfaceDraw(this@ScheduleActivity, groupFullName)
+                        InterfaceDraw(this@ScheduleActivity, "$groupName $groupNum")
                     }
                 }
             }
@@ -54,27 +49,16 @@ class ScheduleActivity : ComponentActivity() {
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun DefaultPreview2() {
-    ScheduleTheme {
-
-    }
-}
-
 @Composable
 fun InterfaceDraw(context: Context, groupName: String){
     var pickedImageUri by remember { mutableStateOf<Uri?>(null) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        println("selected file URI ${it.data?.data}")
         pickedImageUri = it.data?.data
     }
     pickedImageUri?.let {
-        //Text(it.toString())
         val inputStream = context.contentResolver.openInputStream(it)
         val wb = WorkbookFactory.create(inputStream)
         inputStream?.close()
-
         Column(modifier = Modifier
             .verticalScroll(state = rememberScrollState())) {
 
@@ -104,17 +88,16 @@ fun algorithm(wb: Workbook, groupName: String): MutableList<LessonModel> {
     for(sheet in wb){
         val columnNum = findColumn(sheet, groupName)
         if (columnNum == -1) continue
-        val listOfLessons = getLessonPositions(sheet)
 
-        val differentialsList = getParsedDifferentials(listOfLessons)
+        val newAlgorithmList = getLessonPositions(sheet)
 
-        for (day in differentialsList){
+        for (day in newAlgorithmList){
             loopLesson@for (lesson in day){
                 val lessonNamesList = mutableListOf<String>()
                 val teacherNamesList = mutableListOf<String>()
                 val classroomsList = mutableListOf<String>()
 
-                val(difference, value, index) = Triple(lesson.first, lesson.second, lesson.third)
+                val(index, difference, value) = Triple(lesson.first, lesson.second, lesson.third)
 
                 loopInLesson@for (i in 0 until difference step 2){
                     if (difference == 2){
@@ -136,6 +119,8 @@ fun algorithm(wb: Workbook, groupName: String): MutableList<LessonModel> {
                             lessonNamesList.add(getDataFromCell(index + i, columnNum, sheet, formatter))
                             teacherNamesList.add(getDataFromCell(index + 1 + i, columnNum, sheet, formatter))
                             classroomsList.add(getDataFromCell(index + i, columnNum + 1, sheet, formatter))
+
+                            if (getDataFromCell(index + i, columnNum, sheet, formatter) == "") continue@loopLesson
 
                             val lessonToAdd = LessonModel(
                                 value,
@@ -167,37 +152,9 @@ fun algorithm(wb: Workbook, groupName: String): MutableList<LessonModel> {
                 }
             }
         }
-
         return lessonList
     }
     return lessonList
-}
-
-private fun getParsedDifferentials(listOfLessons: MutableList<Pair<Int, String>>): MutableList<MutableList<Triple<Int, String, Int>>>{
-    val list: MutableList<MutableList<Triple<Int, String, Int>>> = ArrayList()
-    var counter = 1
-    for (i in 0 until 6){
-        val list1 = mutableListOf<Triple<Int, String, Int>>()
-        while(counter < listOfLessons.size){
-            val(lessonIndexRowPrevious, indexValuePrevious) = Pair(listOfLessons[counter - 1].first, listOfLessons[counter - 1].second)
-            val(lessonIndexRowCurrent, indexValueCurrent) = Pair(listOfLessons[counter].first, listOfLessons[counter].second)
-
-            counter++
-
-            if (indexValuePrevious.toDouble().toInt() < indexValueCurrent.toDouble().toInt()){
-                val difference = lessonIndexRowCurrent - lessonIndexRowPrevious
-                list1.add(Triple(difference, indexValuePrevious, lessonIndexRowPrevious))
-            }
-            else {
-                val(lessonIndexRowPrevious2, _) = Pair(listOfLessons[counter - 2].first, listOfLessons[counter - 2].second)
-                val(lessonIndexRowCurrent2, _) = Pair(listOfLessons[counter - 1].first, listOfLessons[counter - 1].second)
-                list1.add(Triple(lessonIndexRowCurrent2 - lessonIndexRowPrevious2 - 3, indexValuePrevious, lessonIndexRowPrevious))
-                break
-            }
-        }
-        list.add(list1)
-    }
-    return list
 }
 
 private fun findColumn(sheet: Sheet, cellContent: String): Int {
@@ -220,10 +177,7 @@ private fun getDataFromCell(rowIndex: Int, columnIndex: Int, sheet: Sheet, forma
     return formatter.formatCellValue(row.getCell(cellAddress.column))
 }
 
-private fun getLessonPositions(sheet: Sheet): MutableList<Pair<Int, String>> {
-    val listOfNumbers: MutableList<Pair<Int, String>> = ArrayList()
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////
+private fun getLessonPositions(sheet: Sheet): MutableList<MutableList<Triple<Int, Int, Int>>> {
     val lengthsList = mutableListOf<Triple<Int, Int, Int>>()
     val listOfMergedCells = sheet.mergedRegions
     for (i in listOfMergedCells){
@@ -234,7 +188,7 @@ private fun getLessonPositions(sheet: Sheet): MutableList<Pair<Int, String>> {
     }
 
     val weekLessonsIndexes = mutableListOf<MutableList<Triple<Int, Int, Int>>>()
-    val dayLessonsIndexes = mutableListOf<Triple<Int, Int, Int>>()
+    var dayLessonsIndexes = mutableListOf<Triple<Int, Int, Int>>()
 
     lengthsList.reverse()
     lengthsList.sortBy { it.first }
@@ -256,94 +210,54 @@ private fun getLessonPositions(sheet: Sheet): MutableList<Pair<Int, String>> {
         else{
             dayLessonsIndexes.add(Triple(rowIndex, mergedCellsCount, lessonNumber))
             weekLessonsIndexes.add(dayLessonsIndexes)
-            dayLessonsIndexes.clear()
+            dayLessonsIndexes = mutableListOf()
         }
     }
-    ////////////////////////////////////////////////////////////////////////////////////////////////
-
-    for (row in sheet) {
-        for (cell in row) {
-            if(cell.columnIndex != 0) continue
-            if (cell.cellTypeEnum == CellType.NUMERIC) {
-                listOfNumbers.add(Pair(cell.rowIndex, cell.numericCellValue.toString()))
-            }
-        }
-    }
-    return listOfNumbers
-}
-
-private fun getLessonPositionsNew(sheet: Sheet): MutableList<MutableList<Pair<Int, Int>>> {
-    //val listOfNumbers: MutableList<Pair<Int, String>> = ArrayList()
-    val list = mutableListOf<MutableList<Pair<Int, Int>>>()
-    val list2 = mutableListOf<Pair<Int, Int>>()
-
-    val listLes = mutableListOf<Pair<Int, Int>>()
-
-    for (i in 0 until sheet.lastRowNum) {
-        if (sheet.getRow(i).getCell(0).cellTypeEnum != CellType.NUMERIC) continue
-        listLes.add(Pair(sheet.getRow(i).getCell(0).rowIndex, sheet.getRow(i).getCell(0).numericCellValue.toInt()))
-    }
-
-    for (i in 0 until listLes.size){
-        if (i == listLes.size - 1) {
-            val (a, b) = Pair(listLes[i].first, listLes[i].second)
-            list2.add(Pair(a, b))
-            list.add(list2)
-            break
-        }
-        val (a, b) = Pair(listLes[i].first, listLes[i].second)
-        val (a1, b1) = Pair(listLes[i + 1].first, listLes[i + 1].second)
-        if (b1 > b) {
-            list2.add(Pair(a, b))
-        }
-        else {
-            list.add(list2)
-            list2.clear()
-        }
-    }
-
-    return list
+    return weekLessonsIndexes
 }
 
 @Composable
 fun ShowList(wb: Workbook, groupName: String){
     val fullLessonsInfo = algorithm(wb, groupName)
-    for (i in 1 until fullLessonsInfo.size){
-        if (fullLessonsInfo[i].lessonNumber.toDouble().toInt() < fullLessonsInfo[i - 1].lessonNumber.toDouble().toInt()){
-            Row{
-                Text(text = "Day")
+    for (i in 0 until fullLessonsInfo.size){
+        if (i == fullLessonsInfo.size - 1) continue
+        if (fullLessonsInfo[i].lessonNumber < fullLessonsInfo[i + 1].lessonNumber){
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+                .padding(top = 2.dp)){
+                Box(modifier = Modifier
+                    .fillMaxHeight()
+                    .background(color = Color.Gray)
+                    .weight(1f)) {
+                    Text(text = fullLessonsInfo[i].lessonNumber.toString(),
+                        modifier = Modifier
+                            .align(alignment = Alignment.Center))
+                }
+                Box(modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(start = 2.dp)
+                    .background(color = Color.Gray)
+                    .weight(7f)){
+                    Text(text = if (fullLessonsInfo[i].lessonName.size > 1) "Занятие по группам" else fullLessonsInfo[i].lessonName[0],
+                        modifier = Modifier
+                            .align(alignment = Alignment.CenterStart)
+                            .padding(3.dp))
+                }
+                Box(modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(start = 2.dp)
+                    .background(color = Color.Gray)
+                    .weight(1f)) {
+                    Text(text = fullLessonsInfo[i].classroom[0],
+                        modifier = Modifier
+                            .align(alignment = Alignment.Center))
+                }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier
-            .fillMaxWidth()
-            .height(50.dp)
-            .padding(top = 2.dp)){
-            Box(modifier = Modifier
-                .fillMaxHeight()
-                .background(color = Color.Gray)
-                .weight(1f)) {
-                Text(text = fullLessonsInfo[i].lessonNumber.split(".")[0],
-                    modifier = Modifier
-                        .align(alignment = Alignment.Center))
-            }
-            Box(modifier = Modifier
-                .fillMaxHeight()
-                .padding(start = 2.dp)
-                .background(color = Color.Gray)
-                .weight(7f)){
-                Text(text = if (fullLessonsInfo[i].lessonName.size > 1) "Занятие по группам" else fullLessonsInfo[i].lessonName[0],
-                    modifier = Modifier
-                        .align(alignment = Alignment.CenterStart)
-                        .padding(3.dp))
-            }
-            Box(modifier = Modifier
-                .fillMaxHeight()
-                .padding(start = 2.dp)
-                .background(color = Color.Gray)
-                .weight(1f)) {
-                Text(text = fullLessonsInfo[i].classroom[0],
-                    modifier = Modifier
-                        .align(alignment = Alignment.Center))
+        else {
+            Row{
+                Text(text = "Day")
             }
         }
     }
