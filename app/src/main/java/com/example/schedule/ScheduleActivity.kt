@@ -26,6 +26,10 @@ import androidx.compose.ui.unit.dp
 import com.example.schedule.ui.theme.ScheduleTheme
 import org.apache.poi.ss.usermodel.*
 import org.apache.poi.ss.util.CellAddress
+import org.apache.poi.ss.util.CellRangeAddress
+
+
+
 
 
 class ScheduleActivity : ComponentActivity() {
@@ -219,42 +223,43 @@ private fun getDataFromCell(rowIndex: Int, columnIndex: Int, sheet: Sheet, forma
 private fun getLessonPositions(sheet: Sheet): MutableList<Pair<Int, String>> {
     val listOfNumbers: MutableList<Pair<Int, String>> = ArrayList()
 
-    val lengthsList = mutableListOf<Pair<Int, Int>>()
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    val lengthsList = mutableListOf<Triple<Int, Int, Int>>()
     val listOfMergedCells = sheet.mergedRegions
     for (i in listOfMergedCells){
         if (i.firstColumn != i.lastColumn) continue
         if (i.firstColumn != 0) continue
         if (sheet.getRow(i.firstRow).getCell(0).cellTypeEnum != CellType.NUMERIC) continue
-        lengthsList.add(Pair(i.firstRow, i.numberOfCells))
+        lengthsList.add(Triple(i.firstRow, i.numberOfCells, sheet.getRow(i.firstRow).getCell(0).numericCellValue.toInt()))
     }
 
-    val weekLessonsIndexes = mutableListOf<MutableList<Pair<Int, Int>>>()
-    val dayLessonsIndexes = mutableListOf<Pair<Int, Int>>()
+    val weekLessonsIndexes = mutableListOf<MutableList<Triple<Int, Int, Int>>>()
+    val dayLessonsIndexes = mutableListOf<Triple<Int, Int, Int>>()
 
     lengthsList.reverse()
     lengthsList.sortBy { it.first }
 
     for (i in 0 until lengthsList.size){
         if (i == lengthsList.size - 1) {
-            val (rowIndex, mergedCellsCount) = Pair(lengthsList[i].first, lengthsList[i].second)
-            dayLessonsIndexes.add(Pair(rowIndex, mergedCellsCount))
+            val (rowIndex, mergedCellsCount, lessonNumber) = Triple(lengthsList[i].first, lengthsList[i].second, lengthsList[i].third)
+            dayLessonsIndexes.add(Triple(rowIndex, mergedCellsCount, lessonNumber))
             weekLessonsIndexes.add(dayLessonsIndexes)
             break
         }
 
-        val (rowIndex, mergedCellsCount) = Pair(lengthsList[i].first, lengthsList[i].second)
-        val (rowIndexNext, _) = Pair(lengthsList[i + 1].first, lengthsList[i + 1].second)
+        val (rowIndex, mergedCellsCount, lessonNumber) = Triple(lengthsList[i].first, lengthsList[i].second, lengthsList[i].third)
+        val (rowIndexNext, mergedCellsCountNext, lessonNumberNext) = Triple(lengthsList[i + 1].first, lengthsList[i + 1].second, lengthsList[i + 1].third)
 
-        if (sheet.getRow(rowIndex).getCell(0).numericCellValue.toInt() < sheet.getRow(rowIndexNext).getCell(0).numericCellValue.toInt()){
-            dayLessonsIndexes.add(Pair(rowIndex, mergedCellsCount))
+        if (lessonNumber < lessonNumberNext){
+            dayLessonsIndexes.add(Triple(rowIndex, mergedCellsCount, lessonNumber))
         }
         else{
-            dayLessonsIndexes.add(Pair(rowIndex, mergedCellsCount))
+            dayLessonsIndexes.add(Triple(rowIndex, mergedCellsCount, lessonNumber))
             weekLessonsIndexes.add(dayLessonsIndexes)
             dayLessonsIndexes.clear()
         }
     }
-
+    ////////////////////////////////////////////////////////////////////////////////////////////////
 
     for (row in sheet) {
         for (cell in row) {
