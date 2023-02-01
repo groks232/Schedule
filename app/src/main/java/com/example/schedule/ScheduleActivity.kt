@@ -82,10 +82,13 @@ fun InterfaceDraw(context: Context, groupName: String){
 
 @Composable
 fun ShowList(wb: Workbook, groupName: String){
-    val fullLessonsInfo = algorithm(wb, groupName)
-    for (i in 0 until fullLessonsInfo.size){
-        if (i == fullLessonsInfo.size - 1) continue
-        if (fullLessonsInfo[i].lessonNumber < fullLessonsInfo[i + 1].lessonNumber){
+    val (fullLessonsInfo, datesInfo) = Pair(algorithm(wb, groupName).first, algorithm(wb, groupName).second)
+
+    for (i in 0 until 6){
+        Row {
+            Text(text = datesInfo[i])
+        }
+        for (lesson in fullLessonsInfo[i]){
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
@@ -94,7 +97,7 @@ fun ShowList(wb: Workbook, groupName: String){
                     .fillMaxHeight()
                     .background(color = Color.Gray)
                     .weight(1f)) {
-                    Text(text = fullLessonsInfo[i].lessonNumber.toString(),
+                    Text(text = lesson.lessonNumber.toString(),
                         modifier = Modifier
                             .align(alignment = Alignment.Center))
                 }
@@ -103,7 +106,7 @@ fun ShowList(wb: Workbook, groupName: String){
                     .padding(start = 2.dp)
                     .background(color = Color.Gray)
                     .weight(7f)){
-                    Text(text = if (fullLessonsInfo[i].lessonName.size > 1) "Занятие по группам" else fullLessonsInfo[i].lessonName[0],
+                    Text(text = if (lesson.lessonName.size > 1) "Занятие по группам" else lesson.lessonName[0],
                         modifier = Modifier
                             .align(alignment = Alignment.CenterStart)
                             .padding(3.dp))
@@ -113,15 +116,10 @@ fun ShowList(wb: Workbook, groupName: String){
                     .padding(start = 2.dp)
                     .background(color = Color.Gray)
                     .weight(1f)) {
-                    Text(text = fullLessonsInfo[i].classroom[0],
+                    Text(text = lesson.classroom[0],
                         modifier = Modifier
                             .align(alignment = Alignment.Center))
                 }
-            }
-        }
-        else {
-            Row{
-                Text(text = "Day")
             }
         }
     }

@@ -6,82 +6,91 @@ import org.apache.poi.ss.usermodel.Sheet
 import org.apache.poi.ss.usermodel.Workbook
 import org.apache.poi.ss.util.CellAddress
 
-fun algorithm(wb: Workbook, groupName: String): MutableList<LessonModel> {
-        val formatter = DataFormatter()
+fun algorithm(wb: Workbook, groupName: String): Pair<MutableList<MutableList<LessonModel>>, MutableList<String>> {
+    val formatter = DataFormatter()
 
-        val lessonList = mutableListOf<LessonModel>()
+    val lessonList = mutableListOf<MutableList<LessonModel>>()
 
-        for(sheet in wb){
-            val columnNum = findColumn(sheet, groupName)
-            if (columnNum == -1) continue
+    val dateList = mutableListOf<String>()
+    for(sheet in wb){
+        val columnNum = findColumn(sheet, groupName)
+        if (columnNum == -1) continue
 
-            val newAlgorithmList = getLessonPositions(sheet)
+        val parsedLessonsInfo = getLessonPositions(sheet)
 
-            for (day in newAlgorithmList){
-                loopLesson@for (lesson in day){
-                    val lessonNamesList = mutableListOf<String>()
-                    val teacherNamesList = mutableListOf<String>()
-                    val classroomsList = mutableListOf<String>()
+        for (day in parsedLessonsInfo){
 
-                    val(index, difference, value) = Triple(lesson.first, lesson.second, lesson.third)
+            val dayLessonsList = mutableListOf<LessonModel>()
 
-                    loopInLesson@for (i in 0 until difference step 2){
-                        if (difference == 2){
-                            lessonNamesList.add(getDataFromCell(index, columnNum, sheet, formatter))
-                            teacherNamesList.add(getDataFromCell(index + 1, columnNum, sheet, formatter))
-                            classroomsList.add(getDataFromCell(index, columnNum + 1, sheet, formatter))
-                            val lessonToAdd = LessonModel(
-                                value,
-                                lessonNamesList,
-                                teacherNamesList,
-                                classroomsList,
-                            )
-                            lessonList.add(lessonToAdd)
-                            continue@loopLesson
-                        }
+            val (index,_ , _) = Triple(day[0].first, day[0].second, day[0].third)
+            dateList.add(getDataFromCell(index-3, 0, sheet, formatter))
 
-                        else if (difference > 2 && difference % 2 == 0){
-                            if (getDataFromCell(index, columnNum, sheet, formatter) == ""){
-                                lessonNamesList.add(getDataFromCell(index + i, columnNum, sheet, formatter))
-                                teacherNamesList.add(getDataFromCell(index + 1 + i, columnNum, sheet, formatter))
-                                classroomsList.add(getDataFromCell(index + i, columnNum + 1, sheet, formatter))
+            for (lesson in day){
+                val lessonNamesList = mutableListOf<String>()
+                val teacherNamesList = mutableListOf<String>()
+                val classroomsList = mutableListOf<String>()
+                val(rowIndex, difference, value) = Triple(lesson.first, lesson.second, lesson.third)
 
-                                if (getDataFromCell(index + i, columnNum, sheet, formatter) == "") continue@loopLesson
-
-                                val lessonToAdd = LessonModel(
-                                    value,
-                                    lessonNamesList,
-                                    teacherNamesList,
-                                    classroomsList,
-                                )
-                                lessonList.add(lessonToAdd)
-
-                                continue@loopLesson
+                for (i in 0 until difference step 2){
+                    lessonNamesList.add(getDataFromCell(rowIndex + i, columnNum, sheet, formatter))
+                    teacherNamesList.add(getDataFromCell(rowIndex + 1 + i, columnNum, sheet, formatter))
+                    classroomsList.add(getDataFromCell(rowIndex + i, columnNum + 1, sheet, formatter))
+                    
+                    if (i == difference - 2){
+                        /*var ind = 1
+                        while (ind < lessonNamesList.size){
+                            if (lessonNamesList[ind] == ""){
+                                lessonNamesList.removeAt(ind)
+                                teacherNamesList.removeAt(ind)
+                                classroomsList.removeAt(ind)
                             }
-                            else {
-                                lessonNamesList.add(getDataFromCell(index + i, columnNum, sheet, formatter))
-                                teacherNamesList.add(getDataFromCell(index + 1 + i, columnNum, sheet, formatter))
-                                classroomsList.add(getDataFromCell(index + i, columnNum + 1, sheet, formatter))
-
-                                if (i != difference - 2) continue@loopInLesson
-                                else{
-                                    val lessonToAdd = LessonModel(
-                                        value,
-                                        lessonNamesList,
-                                        teacherNamesList,
-                                        classroomsList,
-                                    )
-                                    lessonList.add(lessonToAdd)
+                            else ind++
+                        }*/
+                        if (lessonNamesList.size > 1){
+                            val iteratorName = lessonNamesList.iterator()
+                            while (iteratorName.hasNext()) {
+                                val iteratorValue = iteratorName.next()
+                                if (iteratorValue == "") {
+                                    iteratorName.remove()
                                 }
                             }
+                            if (lessonNamesList.size == 0) lessonNamesList.add("")
+
+                            val iteratorTeacher = teacherNamesList.iterator()
+                            while (iteratorTeacher.hasNext()) {
+                                val iteratorValue = iteratorTeacher.next()
+                                if (iteratorValue == "") {
+                                    iteratorTeacher.remove()
+                                }
+                            }
+                            if (teacherNamesList.size == 0) lessonNamesList.add("")
+
+                            val iteratorClassroom = classroomsList.iterator()
+                            while (iteratorClassroom.hasNext()) {
+                                val iteratorValue = iteratorClassroom.next()
+                                if (iteratorValue == "") {
+                                    iteratorClassroom.remove()
+                                }
+                            }
+                            if (classroomsList.size == 0) classroomsList.add("")
                         }
+
+                        val lessonToAdd = LessonModel(
+                            value,
+                            lessonNamesList,
+                            teacherNamesList,
+                            classroomsList,
+                        )
+                        dayLessonsList.add(lessonToAdd)
                     }
                 }
             }
-            return lessonList
+            lessonList.add(dayLessonsList)
         }
-        return lessonList
+        return Pair(lessonList, dateList)
     }
+    return Pair(lessonList, dateList)
+}
 
 private fun findColumn(sheet: Sheet, cellContent: String): Int {
         for (row in sheet) {
