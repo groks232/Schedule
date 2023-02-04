@@ -26,9 +26,9 @@ fun algorithm(wb: Workbook, groupName: String): Pair<MutableList<MutableList<Les
             dateList.add(getDataFromCell(index-3, 0, sheet, formatter))
 
             for (lesson in day){
-                val lessonNamesList = mutableListOf<String>()
-                val teacherNamesList = mutableListOf<String>()
-                val classroomsList = mutableListOf<String>()
+                var lessonNamesList = mutableListOf<String>()
+                var teacherNamesList = mutableListOf<String>()
+                var classroomsList = mutableListOf<String>()
                 val(rowIndex, difference, value) = Triple(lesson.first, lesson.second, lesson.third)
 
                 for (i in 0 until difference step 2){
@@ -37,42 +37,15 @@ fun algorithm(wb: Workbook, groupName: String): Pair<MutableList<MutableList<Les
                     classroomsList.add(getDataFromCell(rowIndex + i, columnNum + 1, sheet, formatter))
                     
                     if (i == difference - 2){
-                        /*var ind = 1
-                        while (ind < lessonNamesList.size){
-                            if (lessonNamesList[ind] == ""){
-                                lessonNamesList.removeAt(ind)
-                                teacherNamesList.removeAt(ind)
-                                classroomsList.removeAt(ind)
-                            }
-                            else ind++
-                        }*/
-                        if (lessonNamesList.size > 1){
-                            val iteratorName = lessonNamesList.iterator()
-                            while (iteratorName.hasNext()) {
-                                val iteratorValue = iteratorName.next()
-                                if (iteratorValue == "") {
-                                    iteratorName.remove()
-                                }
-                            }
-                            if (lessonNamesList.size == 0) lessonNamesList.add("")
 
-                            val iteratorTeacher = teacherNamesList.iterator()
-                            while (iteratorTeacher.hasNext()) {
-                                val iteratorValue = iteratorTeacher.next()
-                                if (iteratorValue == "") {
-                                    iteratorTeacher.remove()
-                                }
-                            }
-                            if (teacherNamesList.size == 0) lessonNamesList.add("")
+                        if (lessonNamesList[0] == ""){
+                            lessonNamesList = mutableListOf()
+                            teacherNamesList = mutableListOf()
+                            classroomsList = mutableListOf()
 
-                            val iteratorClassroom = classroomsList.iterator()
-                            while (iteratorClassroom.hasNext()) {
-                                val iteratorValue = iteratorClassroom.next()
-                                if (iteratorValue == "") {
-                                    iteratorClassroom.remove()
-                                }
-                            }
-                            if (classroomsList.size == 0) classroomsList.add("")
+                            lessonNamesList.add("")
+                            teacherNamesList.add("")
+                            classroomsList.add("")
                         }
 
                         val lessonToAdd = LessonModel(
