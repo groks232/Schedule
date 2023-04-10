@@ -1,5 +1,6 @@
-package com.example.schedule
+package com.example.schedule.parsing
 
+import com.example.schedule.LessonModel
 import org.apache.poi.ss.usermodel.CellType
 import org.apache.poi.ss.usermodel.DataFormatter
 import org.apache.poi.ss.usermodel.Sheet
