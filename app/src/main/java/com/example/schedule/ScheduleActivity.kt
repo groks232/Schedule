@@ -2,9 +2,9 @@ package com.example.schedule
 
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,10 +14,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.net.toUri
 import com.example.schedule.parsing.algorithm
 import com.example.schedule.ui.theme.ScheduleTheme
 import kotlinx.coroutines.Dispatchers
@@ -28,8 +26,6 @@ import okhttp3.Request
 import org.apache.poi.ss.usermodel.Workbook
 import org.apache.poi.ss.usermodel.WorkbookFactory
 import java.io.File
-import java.io.FileWriter
-import java.net.HttpURLConnection
 
 class ScheduleActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,18 +56,41 @@ fun cleanFilesDir(context: Context) {
     }
 }
 
+@Composable
+fun LoadingScreen() {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        CircularProgressIndicator()
+    }
+}
+fun readFilesNames(context: Context) {
+    val filesDir = context.filesDir
+    val files = filesDir.listFiles()
+
+    for (file in files){
+        Log.d("FILESDIR", "Filename is: ${file.name}")
+    }
+}
+
 suspend fun downloadFile(url: String, fileName: String, context: Context) {
     withContext(Dispatchers.IO) {
         val client = OkHttpClient()
         val request = Request.Builder().url(url).build()
         val response = client.newCall(request).execute()
 
-        val file = File(context.filesDir, fileName)
+
+        val file = File(context.filesDir/*downloadDir*/, fileName)
         file.outputStream().use { output ->
             response.body?.byteStream()?.use { input ->
                 input.copyTo(output)
             }
         }
+
+        val filesDirFile = readFile("weekly.xlsx", context)
+        Log.d("DOWNLOAD", "Is file: ${filesDirFile.exists()}")
+
     }
 }
 
@@ -81,11 +100,10 @@ fun readFile(fileName: String, context: Context): File {
 
 @Composable
 fun InterfaceDraw(context: Context, groupName: String){
-    cleanFilesDir(context)
+    readFilesNames(context)
     var downloading by remember { mutableStateOf(true) }
     val coroutineScope = rememberCoroutineScope()
-    val url = "https://docs.google.com/spreadsheets/d/1DkXND_5Q1OxGMXL5770-YKP_lOq5h8Jc/edit#gid=1151089704"
-    //val url = "https://example.com/file.xlsx"
+    val url = "https://docs.google.com/spreadsheets/d/1DkXND_5Q1OxGMXL5770-YKP_lOq5h8Jc/export?format=xlsx"
 
     LaunchedEffect(downloading) {
         coroutineScope.launch {
@@ -93,9 +111,6 @@ fun InterfaceDraw(context: Context, groupName: String){
             downloading = false
         }
     }
-
-
-
 
     Scaffold(
         topBar = {
@@ -110,7 +125,7 @@ fun InterfaceDraw(context: Context, groupName: String){
         {
             val file = readFile("weekly.xlsx", context)
             if (file.exists()) {
-                val wb: Workbook = file.let { WorkbookFactory.create(it) }
+                val wb: Workbook = WorkbookFactory.create(file)
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     ShowList(wb = wb, groupName = groupName)
                 }
@@ -126,47 +141,6 @@ fun InterfaceDraw(context: Context, groupName: String){
             }
         }
     }
-    /*var pickedImageUri by remember { mutableStateOf<Uri?>(null) }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        pickedImageUri = it.data?.data
-    }
-    pickedImageUri?.let {
-        val inputStream = context.contentResolver.openInputStream(it)
-        val wb = WorkbookFactory.create(inputStream)
-        inputStream?.close()
-
-        Scaffold(
-            topBar = {
-                TopAppBar {
-                    Spacer(modifier = Modifier
-                        //.width(20.dp)
-                        .weight(1f))
-                    Text("GroupName", fontSize = 22.sp)
-                    Spacer(modifier = Modifier
-                        //.width(20.dp)
-                        .weight(9f))
-                }
-            }
-        ) {
-            Column(modifier = Modifier
-                .verticalScroll(rememberScrollState())
-            ) {
-                ShowList(wb = wb, groupName = groupName)
-            }
-        }
-        wb.close()
-    }
-    Button(
-        onClick = {
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-                .apply {
-                    addCategory(Intent.CATEGORY_OPENABLE)
-                }
-            launcher.launch(intent)
-        }
-    ) {
-        Text("тттттт")
-    }*/
 }
 
 @Composable
