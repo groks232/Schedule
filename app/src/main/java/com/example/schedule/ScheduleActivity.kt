@@ -48,14 +48,6 @@ class ScheduleActivity : ComponentActivity() {
     }
 }
 
-fun cleanFilesDir(context: Context) {
-    val filesDir = context.filesDir // get a reference to the files directory
-    val files = filesDir.listFiles() // get a list of all files in the directory
-    for (file in files) {
-        file.delete() // delete each file in the directory
-    }
-}
-
 @Composable
 fun LoadingScreen() {
     Box(
@@ -74,14 +66,14 @@ fun readFilesNames(context: Context) {
     }
 }
 
-suspend fun downloadFile(url: String, fileName: String, context: Context) {
+/*suspend fun downloadFile(url: String, fileName: String, context: Context) {
     withContext(Dispatchers.IO) {
         val client = OkHttpClient()
         val request = Request.Builder().url(url).build()
         val response = client.newCall(request).execute()
 
 
-        val file = File(context.filesDir/*downloadDir*/, fileName)
+        val file = File(context.filesDir, fileName)
         file.outputStream().use { output ->
             response.body?.byteStream()?.use { input ->
                 input.copyTo(output)
@@ -92,7 +84,7 @@ suspend fun downloadFile(url: String, fileName: String, context: Context) {
         Log.d("DOWNLOAD", "Is file: ${filesDirFile.exists()}")
 
     }
-}
+}*/
 
 fun readFile(fileName: String, context: Context): File {
     return File(context.filesDir, fileName)
@@ -102,7 +94,7 @@ fun readFile(fileName: String, context: Context): File {
 fun InterfaceDraw(context: Context, groupName: String){
     readFilesNames(context)
     var downloading by remember { mutableStateOf(true) }
-    val coroutineScope = rememberCoroutineScope()
+    /*val coroutineScope = rememberCoroutineScope()
     val url = "https://docs.google.com/spreadsheets/d/1DkXND_5Q1OxGMXL5770-YKP_lOq5h8Jc/export?format=xlsx"
 
     LaunchedEffect(downloading) {
@@ -110,7 +102,9 @@ fun InterfaceDraw(context: Context, groupName: String){
             downloadFile(url, "weekly.xlsx", context)
             downloading = false
         }
-    }
+    }*/
+    val file = readFile("weekly.xlsx", context)
+    if (file.exists()) downloading = false
 
     Scaffold(
         topBar = {
@@ -142,10 +136,28 @@ fun InterfaceDraw(context: Context, groupName: String){
         }
     }
 }
-
 @Composable
 fun ShowList(wb: Workbook, groupName: String){
-    val (fullLessonsInfo, datesInfo) = Pair(algorithm(wb, groupName).first, algorithm(wb, groupName).second)
+    /*var parsing by remember { mutableStateOf(true) }
+    val coroutineScope = rememberCoroutineScope()
+    var pair: Pair<MutableList<MutableList<LessonModel>>, MutableList<String>> = Pair(mutableListOf(), mutableListOf())
+    DisposableEffect(parsing) {
+        val job = coroutineScope.launch {
+            pair = doAsync(wb, groupName)
+            Log.d("ASYNC_DEBUG", "pair is ${pair.first}")
+            Log.d("ASYNC_DEBUG", "pair2 is ${pair.second}")
+            parsing = false
+        }
+        onDispose {
+            job.cancel()
+        }
+    }
+    if (parsing){
+        Text(text = "parsing is in process")
+    }
+    else {
+        val (fullLessonsInfo, datesInfo) = Pair(pair.first, pair.second)*/
+    val (fullLessonsInfo, datesInfo) = Pair(algorithm(wb, groupName).first, algorithm(wb,groupName).second)
 
     for (i in 0 until 6){
         Row {
