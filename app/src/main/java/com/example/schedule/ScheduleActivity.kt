@@ -3,29 +3,28 @@ package com.example.schedule
 import android.content.Context
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.schedule.parsing.algorithm
 import com.example.schedule.ui.theme.ScheduleTheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import org.apache.poi.ss.usermodel.Workbook
 import org.apache.poi.ss.usermodel.WorkbookFactory
 import java.io.File
+
 
 class ScheduleActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,15 +47,6 @@ class ScheduleActivity : ComponentActivity() {
     }
 }
 
-@Composable
-fun LoadingScreen() {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier.fillMaxSize()
-    ) {
-        CircularProgressIndicator()
-    }
-}
 fun readFilesNames(context: Context) {
     val filesDir = context.filesDir
     val files = filesDir.listFiles()
@@ -66,26 +56,6 @@ fun readFilesNames(context: Context) {
     }
 }
 
-/*suspend fun downloadFile(url: String, fileName: String, context: Context) {
-    withContext(Dispatchers.IO) {
-        val client = OkHttpClient()
-        val request = Request.Builder().url(url).build()
-        val response = client.newCall(request).execute()
-
-
-        val file = File(context.filesDir, fileName)
-        file.outputStream().use { output ->
-            response.body?.byteStream()?.use { input ->
-                input.copyTo(output)
-            }
-        }
-
-        val filesDirFile = readFile("weekly.xlsx", context)
-        Log.d("DOWNLOAD", "Is file: ${filesDirFile.exists()}")
-
-    }
-}*/
-
 fun readFile(fileName: String, context: Context): File {
     return File(context.filesDir, fileName)
 }
@@ -94,15 +64,6 @@ fun readFile(fileName: String, context: Context): File {
 fun InterfaceDraw(context: Context, groupName: String){
     readFilesNames(context)
     var downloading by remember { mutableStateOf(true) }
-    /*val coroutineScope = rememberCoroutineScope()
-    val url = "https://docs.google.com/spreadsheets/d/1DkXND_5Q1OxGMXL5770-YKP_lOq5h8Jc/export?format=xlsx"
-
-    LaunchedEffect(downloading) {
-        coroutineScope.launch {
-            downloadFile(url, "weekly.xlsx", context)
-            downloading = false
-        }
-    }*/
     val file = readFile("weekly.xlsx", context)
     if (file.exists()) downloading = false
 
@@ -117,46 +78,39 @@ fun InterfaceDraw(context: Context, groupName: String){
     ) {
         if (!downloading) 
         {
-            val file = readFile("weekly.xlsx", context)
             if (file.exists()) {
                 val wb: Workbook = WorkbookFactory.create(file)
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    ShowList(wb = wb, groupName = groupName)
-                }
+                val (fullLessonsInfo, datesInfo) = Pair(algorithm(wb, groupName).first, algorithm(wb,groupName).second)
+                LessonsList(
+                    fullLessonsInfo,
+                    datesInfo,
+                    onItemClick = { lesson ->
+                        if (lesson.lessonName.size > 1){
+                            for(lessonName in lesson.lessonName){
+                                val toast = Toast.makeText(context, lessonName, Toast.LENGTH_SHORT)
+                                toast.show()
+                            }
+                        }
+                        else {
+                            val toast = Toast.makeText(context, lesson.lessonName[0], Toast.LENGTH_SHORT)
+                            toast.show()
+                        }
+                    })
             } else {
                 Column {
                     Text(text = "file doesn't exist")
                 }
             }
-            
         } else {
             Column {
-
+                Text(text = "Обработка")
             }
         }
     }
 }
 @Composable
 fun ShowList(wb: Workbook, groupName: String){
-    /*var parsing by remember { mutableStateOf(true) }
-    val coroutineScope = rememberCoroutineScope()
-    var pair: Pair<MutableList<MutableList<LessonModel>>, MutableList<String>> = Pair(mutableListOf(), mutableListOf())
-    DisposableEffect(parsing) {
-        val job = coroutineScope.launch {
-            pair = doAsync(wb, groupName)
-            Log.d("ASYNC_DEBUG", "pair is ${pair.first}")
-            Log.d("ASYNC_DEBUG", "pair2 is ${pair.second}")
-            parsing = false
-        }
-        onDispose {
-            job.cancel()
-        }
-    }
-    if (parsing){
-        Text(text = "parsing is in process")
-    }
-    else {
-        val (fullLessonsInfo, datesInfo) = Pair(pair.first, pair.second)*/
+    val context = LocalContext.current
     val (fullLessonsInfo, datesInfo) = Pair(algorithm(wb, groupName).first, algorithm(wb,groupName).second)
 
     for (i in 0 until 6){
@@ -167,7 +121,11 @@ fun ShowList(wb: Workbook, groupName: String){
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
-                .padding(top = 2.dp)){
+                .padding(top = 2.dp)
+                .clickable {
+                    val toast = Toast.makeText(context, "text", Toast.LENGTH_SHORT)
+                    toast.show()
+                }){
                 Box(modifier = Modifier
                     .fillMaxHeight()
                     .background(color = Color.Gray)
@@ -196,6 +154,76 @@ fun ShowList(wb: Workbook, groupName: String){
                             .align(alignment = Alignment.Center))
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun LessonsList(fullLessonsInfo: MutableList<MutableList<LessonModel>>, datesInfo: MutableList<String>, onItemClick: (LessonModel) -> Unit) {
+    // Flatten the list of lesson models to create a single list of items
+    val items = mutableListOf<Any>()
+    for ((index, dayLessons) in fullLessonsInfo.withIndex()) {
+        // Add the date for the current day
+        items.add(datesInfo[index])
+
+        // Add each lesson for the current day
+        for (lesson in dayLessons) {
+            items.add(lesson)
+        }
+    }
+
+    LazyColumn {
+        items(items) { item ->
+            // Depending on the type of item, create a view for either the date or the lesson
+            when (item) {
+                is String -> {
+                    Row{
+                        Text(text = item)
+                    }
+                }
+                is LessonModel -> {
+                    LessonView(lesson = item, onItemClick = onItemClick)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LessonView(lesson: LessonModel, onItemClick: (LessonModel) -> Unit) {
+    // Create a view for the lesson and make it clickable
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier
+        .fillMaxWidth()
+        .height(50.dp)
+        .padding(top = 2.dp)
+        .clickable { onItemClick(lesson) }
+    ) {
+        Box(modifier = Modifier
+            .fillMaxHeight()
+            .background(color = Color.Gray)
+            .weight(1f)) {
+            Text(text = lesson.lessonNumber.toString(),
+                modifier = Modifier
+                    .align(alignment = Alignment.Center))
+        }
+        Box(modifier = Modifier
+            .fillMaxHeight()
+            .padding(start = 2.dp)
+            .background(color = Color.Gray)
+            .weight(7f)){
+            Text(text = if (lesson.lessonName.size > 1) "Занятие по группам" else lesson.lessonName[0],
+                modifier = Modifier
+                    .align(alignment = Alignment.CenterStart)
+                    .padding(3.dp))
+        }
+        Box(modifier = Modifier
+            .fillMaxHeight()
+            .padding(start = 2.dp)
+            .background(color = Color.Gray)
+            .weight(1f)) {
+            Text(text = lesson.classroom[0],
+                modifier = Modifier
+                    .align(alignment = Alignment.Center))
         }
     }
 }

@@ -8,38 +8,58 @@ import org.apache.poi.ss.usermodel.Workbook
 import org.apache.poi.ss.util.CellAddress
 
 fun algorithm(wb: Workbook, groupName: String): Pair<MutableList<MutableList<LessonModel>>, MutableList<String>> {
+    // Create a DataFormatter object to format cell values as strings
     val formatter = DataFormatter()
 
+    // Create a list to store the lessons for each day
     val lessonList = mutableListOf<MutableList<LessonModel>>()
 
+    // Create a list to store the dates for each day
     val dateList = mutableListOf<String>()
-    for(sheet in wb){
-        val columnNum = findColumn(sheet, groupName)
-        if (columnNum == -1) continue
 
+    // Iterate over each sheet in the workbook
+    for (sheet in wb) {
+        // Find the column number for the specified group name
+        val columnNum = findColumn(sheet, groupName)
+
+        // If the column number is not found, skip to the next sheet
+        if (columnNum == -1) {
+            continue
+        }
+
+        // Get the positions of all the lessons in the sheet
         val parsedLessonsInfo = getLessonPositions(sheet)
 
-        for (day in parsedLessonsInfo){
-
+        // Iterate over each day in the parsed lesson info
+        for (day in parsedLessonsInfo) {
+            // Create a list to store the lessons for the current day
             val dayLessonsList = mutableListOf<LessonModel>()
 
-            val (index,_ , _) = Triple(day[0].first, day[0].second, day[0].third)
-            dateList.add(getDataFromCell(index-3, 0, sheet, formatter))
+            // Get the date for the current day and add it to the date list
+            val (index, _, _) = Triple(day[0].first, day[0].second, day[0].third)
+            dateList.add(getDataFromCell(index - 3, 0, sheet, formatter))
 
-            for (lesson in day){
+            // Iterate over each lesson in the current day
+            for (lesson in day) {
+                // Create lists to store the lesson name, teacher name, and classroom for the current lesson
                 var lessonNamesList = mutableListOf<String>()
                 var teacherNamesList = mutableListOf<String>()
                 var classroomsList = mutableListOf<String>()
-                val(rowIndex, difference, value) = Triple(lesson.first, lesson.second, lesson.third)
 
-                for (i in 0 until difference step 2){
+                // Get the row index, difference, and value for the current lesson
+                val (rowIndex, difference, value) = Triple(lesson.first, lesson.second, lesson.third)
+
+                // Iterate over each group of cells for the current lesson
+                for (i in 0 until difference step 2) {
+                    // Add the lesson name, teacher name, and classroom to their respective lists
                     lessonNamesList.add(getDataFromCell(rowIndex + i, columnNum, sheet, formatter))
                     teacherNamesList.add(getDataFromCell(rowIndex + 1 + i, columnNum, sheet, formatter))
                     classroomsList.add(getDataFromCell(rowIndex + i, columnNum + 1, sheet, formatter))
-                    
-                    if (i == difference - 2){
 
-                        if (lessonNamesList[0] == ""){
+                    // If this is the last group of cells for the current lesson
+                    if (i == difference - 2) {
+                        // If the lesson name is empty, create an empty lesson
+                        if (lessonNamesList[0] == "") {
                             lessonNamesList = mutableListOf()
                             teacherNamesList = mutableListOf()
                             classroomsList = mutableListOf()
@@ -49,6 +69,7 @@ fun algorithm(wb: Workbook, groupName: String): Pair<MutableList<MutableList<Les
                             classroomsList.add("")
                         }
 
+                        // Create a new LessonModel object and add it to the dayLessonsList
                         val lessonToAdd = LessonModel(
                             value,
                             lessonNamesList,
@@ -59,10 +80,13 @@ fun algorithm(wb: Workbook, groupName: String): Pair<MutableList<MutableList<Les
                     }
                 }
             }
+
+            // Add the dayLessonsList to the lessonList
             lessonList.add(dayLessonsList)
         }
-        return Pair(lessonList, dateList)
     }
+
+    // Return the lessonList and dateList as a pair
     return Pair(lessonList, dateList)
 }
 
@@ -119,3 +143,34 @@ private fun getLessonPositions(sheet: Sheet): MutableList<MutableList<Triple<Int
     }
     return weekLessonsIndexes
 }
+
+/*
+private fun getLessonPositions(sheet: Sheet): List<List<LessonCellGroup>> {
+    val lessonCellGroups = mutableListOf<LessonCellGroup>()
+
+    for (mergedRegion in sheet.mergedRegions) {
+        if (mergedRegion.firstColumn != mergedRegion.lastColumn) {
+            continue
+        }
+        val firstCell = sheet.getRow(mergedRegion.firstRow)?.getCell(0)
+        if (firstCell?.cellTypeEnum != CellType.NUMERIC) {
+            continue
+        }
+        val lessonNumber = firstCell.numericCellValue.toInt()
+        lessonCellGroups.add(LessonCellGroup(mergedRegion.firstRow, mergedRegion.numberOfCells, lessonNumber))
+    }
+
+    val weekLessonsIndexes = mutableListOf<List<LessonCellGroup>>()
+    var dayLessonsIndexes = mutableListOf<LessonCellGroup>()
+
+    lessonCellGroups.sortedBy { it.rowIndex }
+        .forEachIndexed { index, lessonCellGroup ->
+            dayLessonsIndexes.add(lessonCellGroup)
+            if (index == lessonCellGroups.lastIndex || lessonCellGroup.lessonNumber >= lessonCellGroups[index + 1].lessonNumber) {
+                weekLessonsIndexes.add(dayLessonsIndexes)
+                dayLessonsIndexes = mutableListOf()
+            }
+        }
+
+    return weekLessonsIndexes
+}*/
