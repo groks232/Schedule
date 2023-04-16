@@ -20,6 +20,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.schedule.parsing.algorithm
+import com.example.schedule.parsing.detectCellGroupsWithSharedBordersInColumn
+import com.example.schedule.parsing.getCellsGroup
 import com.example.schedule.ui.theme.ScheduleTheme
 import org.apache.poi.ss.usermodel.Workbook
 import org.apache.poi.ss.usermodel.WorkbookFactory
@@ -80,6 +82,7 @@ fun InterfaceDraw(context: Context, groupName: String){
         {
             if (file.exists()) {
                 val wb: Workbook = WorkbookFactory.create(file)
+                //val testValue = getCellsGroup(wb, groupName)
                 val (fullLessonsInfo, datesInfo) = Pair(algorithm(wb, groupName).first, algorithm(wb,groupName).second)
                 LessonsList(
                     fullLessonsInfo,

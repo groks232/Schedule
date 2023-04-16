@@ -1,13 +1,20 @@
 package com.example.schedule.parsing
 
+import android.util.Log
+import androidx.compose.runtime.remember
 import com.example.schedule.LessonModel
-import org.apache.poi.ss.usermodel.CellType
-import org.apache.poi.ss.usermodel.DataFormatter
-import org.apache.poi.ss.usermodel.Sheet
-import org.apache.poi.ss.usermodel.Workbook
+import org.apache.poi.ss.usermodel.*
 import org.apache.poi.ss.util.CellAddress
+import org.apache.poi.ss.util.CellRangeUtil
+import org.apache.poi.ss.util.CellUtil
+import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import java.io.File
+import java.io.FileInputStream
 
-fun algorithm(wb: Workbook, groupName: String): Pair<MutableList<MutableList<LessonModel>>, MutableList<String>> {
+fun algorithm(
+    wb: Workbook,
+    groupName: String
+): Pair<MutableList<MutableList<LessonModel>>, MutableList<String>> {
     // Create a DataFormatter object to format cell values as strings
     val formatter = DataFormatter()
 
@@ -28,7 +35,7 @@ fun algorithm(wb: Workbook, groupName: String): Pair<MutableList<MutableList<Les
         }
 
         // Get the positions of all the lessons in the sheet
-        val parsedLessonsInfo = getLessonPositions(sheet)
+        val parsedLessonsInfo = mergeLessonNumberCells(sheet)
 
         // Iterate over each day in the parsed lesson info
         for (day in parsedLessonsInfo) {
@@ -47,14 +54,32 @@ fun algorithm(wb: Workbook, groupName: String): Pair<MutableList<MutableList<Les
                 var classroomsList = mutableListOf<String>()
 
                 // Get the row index, difference, and value for the current lesson
-                val (rowIndex, difference, value) = Triple(lesson.first, lesson.second, lesson.third)
+                val (rowIndex, difference, value) = Triple(
+                    lesson.first,
+                    lesson.second,
+                    lesson.third
+                )
 
                 // Iterate over each group of cells for the current lesson
                 for (i in 0 until difference step 2) {
                     // Add the lesson name, teacher name, and classroom to their respective lists
                     lessonNamesList.add(getDataFromCell(rowIndex + i, columnNum, sheet, formatter))
-                    teacherNamesList.add(getDataFromCell(rowIndex + 1 + i, columnNum, sheet, formatter))
-                    classroomsList.add(getDataFromCell(rowIndex + i, columnNum + 1, sheet, formatter))
+                    teacherNamesList.add(
+                        getDataFromCell(
+                            rowIndex + 1 + i,
+                            columnNum,
+                            sheet,
+                            formatter
+                        )
+                    )
+                    classroomsList.add(
+                        getDataFromCell(
+                            rowIndex + i,
+                            columnNum + 1,
+                            sheet,
+                            formatter
+                        )
+                    )
 
                     // If this is the last group of cells for the current lesson
                     if (i == difference - 2) {
@@ -91,86 +116,121 @@ fun algorithm(wb: Workbook, groupName: String): Pair<MutableList<MutableList<Les
 }
 
 private fun findColumn(sheet: Sheet, cellContent: String): Int {
-        for (row in sheet) {
-            for (cell in row) {
-                if(cell.cellTypeEnum == CellType.STRING){
-                    if (cell.richStringCellValue.string.trim { it <= ' ' } == cellContent) {
-                        return cell.columnIndex
-                    }
+    for (row in sheet) {
+        for (cell in row) {
+            if (cell.cellTypeEnum == CellType.STRING) {
+                if (cell.richStringCellValue.string.trim { it <= ' ' } == cellContent) {
+                    return cell.columnIndex
                 }
             }
         }
-        return -1
     }
-
-private fun getDataFromCell(rowIndex: Int, columnIndex: Int, sheet: Sheet, formatter: DataFormatter): String {
-        if (rowIndex == -1 || columnIndex == -1) return "incorrect data"
-        val cellAddress = CellAddress(rowIndex, columnIndex)
-        val row = sheet.getRow(cellAddress.row)
-        return formatter.formatCellValue(row.getCell(cellAddress.column))
-    }
-
-private fun getLessonPositions(sheet: Sheet): MutableList<MutableList<Triple<Int, Int, Int>>> {
-    val lengthsList = mutableListOf<Triple<Int, Int, Int>>()
-    val listOfMergedCells = sheet.mergedRegions
-    for (i in listOfMergedCells){
-        if (i.firstColumn != i.lastColumn) continue
-        if (i.firstColumn != 0) continue
-        if (sheet.getRow(i.firstRow).getCell(0).cellTypeEnum != CellType.NUMERIC) continue
-        lengthsList.add(Triple(i.firstRow, i.numberOfCells, sheet.getRow(i.firstRow).getCell(0).numericCellValue.toInt()))
-    }
-    val weekLessonsIndexes = mutableListOf<MutableList<Triple<Int, Int, Int>>>()
-    var dayLessonsIndexes = mutableListOf<Triple<Int, Int, Int>>()
-    lengthsList.reverse()
-    lengthsList.sortBy { it.first }
-    for (i in 0 until lengthsList.size){
-        if (i == lengthsList.size - 1) {
-            val (rowIndex, mergedCellsCount, lessonNumber) = Triple(lengthsList[i].first, lengthsList[i].second, lengthsList[i].third)
-            dayLessonsIndexes.add(Triple(rowIndex, mergedCellsCount, lessonNumber))
-            weekLessonsIndexes.add(dayLessonsIndexes)
-            break
-        }
-        val (rowIndex, mergedCellsCount, lessonNumber) = Triple(lengthsList[i].first, lengthsList[i].second, lengthsList[i].third)
-        val (rowIndexNext, mergedCellsCountNext, lessonNumberNext) = Triple(lengthsList[i + 1].first, lengthsList[i + 1].second, lengthsList[i + 1].third)
-        if (lessonNumber < lessonNumberNext){
-            dayLessonsIndexes.add(Triple(rowIndex, mergedCellsCount, lessonNumber))
-        }
-        else{
-            dayLessonsIndexes.add(Triple(rowIndex, mergedCellsCount, lessonNumber))
-            weekLessonsIndexes.add(dayLessonsIndexes)
-            dayLessonsIndexes = mutableListOf()
-        }
-    }
-    return weekLessonsIndexes
+    return -1
 }
 
-/*
-private fun getLessonPositions(sheet: Sheet): List<List<LessonCellGroup>> {
-    val lessonCellGroups = mutableListOf<LessonCellGroup>()
+private fun getDataFromCell(
+    rowIndex: Int,
+    columnIndex: Int,
+    sheet: Sheet,
+    formatter: DataFormatter
+): String {
+    if (rowIndex == -1 || columnIndex == -1) return "incorrect data"
+    val cellAddress = CellAddress(rowIndex, columnIndex)
+    val row = sheet.getRow(cellAddress.row)
+    return formatter.formatCellValue(row.getCell(cellAddress.column))
+}
 
-    for (mergedRegion in sheet.mergedRegions) {
-        if (mergedRegion.firstColumn != mergedRegion.lastColumn) {
-            continue
-        }
-        val firstCell = sheet.getRow(mergedRegion.firstRow)?.getCell(0)
-        if (firstCell?.cellTypeEnum != CellType.NUMERIC) {
-            continue
-        }
-        val lessonNumber = firstCell.numericCellValue.toInt()
-        lessonCellGroups.add(LessonCellGroup(mergedRegion.firstRow, mergedRegion.numberOfCells, lessonNumber))
-    }
+fun mergeLessonNumberCells(sheet: Sheet): MutableList<MutableList<Triple<Int, Int, Int>>> {
+    val dayStartRows = getFullyMergedRows(sheet)
+    dayStartRows.sort()
 
-    val weekLessonsIndexes = mutableListOf<List<LessonCellGroup>>()
-    var dayLessonsIndexes = mutableListOf<LessonCellGroup>()
+    var dayStartRowListIndex = 0
 
-    lessonCellGroups.sortedBy { it.rowIndex }
-        .forEachIndexed { index, lessonCellGroup ->
-            dayLessonsIndexes.add(lessonCellGroup)
-            if (index == lessonCellGroups.lastIndex || lessonCellGroup.lessonNumber >= lessonCellGroups[index + 1].lessonNumber) {
-                weekLessonsIndexes.add(dayLessonsIndexes)
-                dayLessonsIndexes = mutableListOf()
+    var dayStartRowContent = dayStartRows[dayStartRowListIndex]
+
+
+    val lengthList = mutableListOf<Triple<Int, Int, Int>>()
+
+    var lessonNumberLength = 0
+
+    var previousCellValue = 0
+
+    var previousRowIndex = 0
+
+
+    outer@while(true) {
+        for (rowIndex in dayStartRowContent + 3..sheet.lastRowNum) {
+            val row = sheet.getRow(rowIndex)
+            val cell = row.getCell(row.firstCellNum.toInt(), Row.MissingCellPolicy.CREATE_NULL_AS_BLANK)
+
+
+            if (cell.cellTypeEnum == CellType.BLANK) {
+                lessonNumberLength++
+            }
+
+            if (cell.cellTypeEnum == CellType.NUMERIC) {
+                if (lessonNumberLength > 0) {
+
+                    //first index, second length, third content
+                    lengthList.add(
+                        Triple(
+                            previousRowIndex,
+                            lessonNumberLength + 1,
+                            //cell.numericCellValue.toInt()
+                            previousCellValue
+                        )
+                    )
+                    lessonNumberLength = 0
+                    previousCellValue = cell.numericCellValue.toInt()
+                    previousRowIndex = rowIndex
+                    continue
+                }
+                else {
+                    lessonNumberLength = 1
+                    previousCellValue = cell.numericCellValue.toInt()
+                    previousRowIndex = rowIndex
+                    val a: Int
+                }
+            }
+
+            if (dayStartRowListIndex < 5){
+                if (dayStartRows[dayStartRowListIndex + 1] - rowIndex <= 2) {
+                    dayStartRowListIndex++
+                    dayStartRowContent = dayStartRows[dayStartRowListIndex]
+                    break
+                }
+            }
+
+            else {
+                if (rowIndex == sheet.lastRowNum) break@outer
             }
         }
+    }
 
-    return weekLessonsIndexes
-}*/
+    var dailyLengthList = mutableListOf<Triple<Int, Int, Int>>()
+    val weeklyLengthList = mutableListOf<MutableList<Triple<Int, Int, Int>>>()
+
+    for (item in 0 until lengthList.size - 1){
+        if (lengthList[item].third < lengthList[item + 1].third) dailyLengthList.add(lengthList[item])
+        else {
+            dailyLengthList.add(lengthList[item + 1])
+            weeklyLengthList.add(dailyLengthList)
+            dailyLengthList = mutableListOf()
+        }
+    }
+    dailyLengthList.add(lengthList.last())
+    weeklyLengthList.add(dailyLengthList)
+
+    return weeklyLengthList
+}
+
+fun getFullyMergedRows(sheet: Sheet): MutableList<Int> {
+    val fullyMergedRows = mutableListOf<Int>()
+    val mergedRegions = sheet.mergedRegions
+    for (mergedRegion in mergedRegions) {
+        if (mergedRegion.firstRow == mergedRegion.lastRow && mergedRegion.firstColumn == 0 && mergedRegion.lastColumn == 12) {
+            fullyMergedRows.add(mergedRegion.firstRow)
+        }
+    }
+    return fullyMergedRows.asReversed()
+}
