@@ -20,8 +20,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.schedule.parsing.algorithm
-import com.example.schedule.parsing.detectCellGroupsWithSharedBordersInColumn
-import com.example.schedule.parsing.getCellsGroup
+import com.example.schedule.parsing.getDates
+import com.example.schedule.parsing.newAlgorithm
 import com.example.schedule.ui.theme.ScheduleTheme
 import org.apache.poi.ss.usermodel.Workbook
 import org.apache.poi.ss.usermodel.WorkbookFactory
@@ -83,7 +83,12 @@ fun InterfaceDraw(context: Context, groupName: String){
             if (file.exists()) {
                 val wb: Workbook = WorkbookFactory.create(file)
                 //val testValue = getCellsGroup(wb, groupName)
-                val (fullLessonsInfo, datesInfo) = Pair(algorithm(wb, groupName).first, algorithm(wb,groupName).second)
+                //newAlgorithm(wb, groupName)
+                //val (fullLessonsInfo, datesInfo) = Pair(algorithm(wb, groupName).first, algorithm(wb,groupName).second)
+
+                val fullLessonsInfo = newAlgorithm(wb, groupName)
+                val datesInfo = getDates(wb)
+
                 LessonsList(
                     fullLessonsInfo,
                     datesInfo,
@@ -111,56 +116,6 @@ fun InterfaceDraw(context: Context, groupName: String){
         }
     }
 }
-@Composable
-fun ShowList(wb: Workbook, groupName: String){
-    val context = LocalContext.current
-    val (fullLessonsInfo, datesInfo) = Pair(algorithm(wb, groupName).first, algorithm(wb,groupName).second)
-
-    for (i in 0 until 6){
-        Row {
-            Text(text = datesInfo[i])
-        }
-        for (lesson in fullLessonsInfo[i]){
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .padding(top = 2.dp)
-                .clickable {
-                    val toast = Toast.makeText(context, "text", Toast.LENGTH_SHORT)
-                    toast.show()
-                }){
-                Box(modifier = Modifier
-                    .fillMaxHeight()
-                    .background(color = Color.Gray)
-                    .weight(1f)) {
-                    Text(text = lesson.lessonNumber.toString(),
-                        modifier = Modifier
-                            .align(alignment = Alignment.Center))
-                }
-                Box(modifier = Modifier
-                    .fillMaxHeight()
-                    .padding(start = 2.dp)
-                    .background(color = Color.Gray)
-                    .weight(7f)){
-                    Text(text = if (lesson.lessonName.size > 1) "Занятие по группам" else lesson.lessonName[0],
-                        modifier = Modifier
-                            .align(alignment = Alignment.CenterStart)
-                            .padding(3.dp))
-                }
-                Box(modifier = Modifier
-                    .fillMaxHeight()
-                    .padding(start = 2.dp)
-                    .background(color = Color.Gray)
-                    .weight(1f)) {
-                    Text(text = lesson.classroom[0],
-                        modifier = Modifier
-                            .align(alignment = Alignment.Center))
-                }
-            }
-        }
-    }
-}
-
 @Composable
 fun LessonsList(fullLessonsInfo: MutableList<MutableList<LessonModel>>, datesInfo: MutableList<String>, onItemClick: (LessonModel) -> Unit) {
     // Flatten the list of lesson models to create a single list of items
