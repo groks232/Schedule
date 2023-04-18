@@ -35,7 +35,7 @@ fun getLessonNumberCells(sheet: Sheet): MutableList<MutableList<Triple<Int, Int,
     var previousRowIndex = 0
     outer@while(true) {
         for (rowIndex in dayStartRowContent + 3..sheet.lastRowNum) {
-            if (rowIndex == 148) {
+            if (rowIndex == 100) {
                 var a = rowIndex
                 a = 1
             }
@@ -168,8 +168,12 @@ fun algorithm(wb: Workbook, groupName: String): MutableList<MutableList<LessonMo
 fun getFullyMergedRows(sheet: Sheet): MutableList<Int> {
     val fullyMergedRows = mutableListOf<Int>()
     val mergedRegions = sheet.mergedRegions
+
+    val row: Row = sheet.getRow(6)
+    val lastCellNum = row.lastCellNum.toInt() - 1
+
     for (mergedRegion in mergedRegions) {
-        if (mergedRegion.firstRow == mergedRegion.lastRow && mergedRegion.firstColumn == 0 && mergedRegion.lastColumn == 12) {
+        if (mergedRegion.firstRow == mergedRegion.lastRow && mergedRegion.firstColumn == 0 && mergedRegion.lastColumn == lastCellNum) {
             fullyMergedRows.add(mergedRegion.firstRow)
         }
     }

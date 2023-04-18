@@ -1,5 +1,6 @@
 package com.example.schedule
 
+import android.content.ClipData
 import android.content.Context
 import android.os.Bundle
 import android.util.Log
@@ -21,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.example.schedule.parsing.getDates
 import com.example.schedule.parsing.algorithm
 import com.example.schedule.ui.theme.ScheduleTheme
+import kotlinx.coroutines.launch
 import org.apache.poi.ss.usermodel.Workbook
 import org.apache.poi.ss.usermodel.WorkbookFactory
 import java.io.File
@@ -80,10 +82,6 @@ fun InterfaceDraw(context: Context, groupName: String){
         {
             if (file.exists()) {
                 val wb: Workbook = WorkbookFactory.create(file)
-                //val testValue = getCellsGroup(wb, groupName)
-                //newAlgorithm(wb, groupName)
-                //val (fullLessonsInfo, datesInfo) = Pair(algorithm(wb, groupName).first, algorithm(wb,groupName).second)
-
                 val fullLessonsInfo = algorithm(wb, groupName)
                 val datesInfo = getDates(wb)
 
@@ -91,14 +89,8 @@ fun InterfaceDraw(context: Context, groupName: String){
                     fullLessonsInfo,
                     datesInfo,
                     onItemClick = { lesson ->
-                        if (lesson.lessonName.size > 1){
-                            for(lessonName in lesson.lessonName){
-                                val toast = Toast.makeText(context, lessonName, Toast.LENGTH_SHORT)
-                                toast.show()
-                            }
-                        }
-                        else {
-                            val toast = Toast.makeText(context, lesson.lessonName[0], Toast.LENGTH_SHORT)
+                        for(lessonName in lesson.lessonName){
+                            val toast = Toast.makeText(context, lessonName, Toast.LENGTH_SHORT)
                             toast.show()
                         }
                     })
@@ -128,6 +120,7 @@ fun LessonsList(fullLessonsInfo: MutableList<MutableList<LessonModel>>, datesInf
         }
     }
 
+
     LazyColumn {
         items(items) { item ->
             // Depending on the type of item, create a view for either the date or the lesson
@@ -143,11 +136,11 @@ fun LessonsList(fullLessonsInfo: MutableList<MutableList<LessonModel>>, datesInf
             }
         }
     }
+
 }
 
 @Composable
 fun LessonView(lesson: LessonModel, onItemClick: (LessonModel) -> Unit) {
-    // Create a view for the lesson and make it clickable
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier
         .fillMaxWidth()
         .height(50.dp)
@@ -183,3 +176,4 @@ fun LessonView(lesson: LessonModel, onItemClick: (LessonModel) -> Unit) {
         }
     }
 }
+
