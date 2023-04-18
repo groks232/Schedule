@@ -27,44 +27,48 @@ private fun getDataFromCell(rowIndex: Int, columnIndex: Int, sheet: Sheet, forma
 fun getLessonNumberCells(sheet: Sheet): MutableList<MutableList<Triple<Int, Int, Int>>> {
     val dayStartRows = getFullyMergedRows(sheet)
     dayStartRows.sort()
-
     var dayStartRowListIndex = 0
-
     var dayStartRowContent = dayStartRows[dayStartRowListIndex]
-
-
     val lengthList = mutableListOf<Triple<Int, Int, Int>>()
-
     var lessonNumberLength = 0
-
     var previousCellValue = 0
-
     var previousRowIndex = 0
-
-
     outer@while(true) {
         for (rowIndex in dayStartRowContent + 3..sheet.lastRowNum) {
+            if (rowIndex == 148) {
+                var a = rowIndex
+                a = 1
+            }
             val row = sheet.getRow(rowIndex)
             val cell = row.getCell(row.firstCellNum.toInt(), Row.MissingCellPolicy.CREATE_NULL_AS_BLANK)
 
+            if (dayStartRowListIndex < 5){
+                if (dayStartRows[dayStartRowListIndex + 1] - rowIndex <= 2) {
+                    dayStartRowListIndex++
+                    dayStartRowContent = dayStartRows[dayStartRowListIndex]
+                    break
+                }
+            }
 
-            if (cell.cellTypeEnum == CellType.BLANK) {
-                lessonNumberLength++
+            else {
+                if (rowIndex == sheet.lastRowNum) break@outer
             }
 
             if (cell.cellTypeEnum == CellType.NUMERIC) {
                 if (lessonNumberLength > 0) {
-
                     //first index, second length, third content
                     lengthList.add(
-                        Triple(
-                            previousRowIndex,
-                            lessonNumberLength + 1,
-                            //cell.numericCellValue.toInt()
-                            previousCellValue
-                        )
+                        Triple(previousRowIndex,lessonNumberLength, previousCellValue)
                     )
-                    lessonNumberLength = 0
+                    /*if (lessonNumberLength == 1){
+
+                    }
+                    else {
+                        lengthList.add(
+                            Triple(previousRowIndex,lessonNumberLength + 1, previousCellValue)
+                        )
+                    }*/
+                    lessonNumberLength = 1
                     previousCellValue = cell.numericCellValue.toInt()
                     previousRowIndex = rowIndex
                     continue
@@ -77,16 +81,8 @@ fun getLessonNumberCells(sheet: Sheet): MutableList<MutableList<Triple<Int, Int,
                 }
             }
 
-            if (dayStartRowListIndex < 5){
-                if (dayStartRows[dayStartRowListIndex + 1] - rowIndex <= 2) {
-                    dayStartRowListIndex++
-                    dayStartRowContent = dayStartRows[dayStartRowListIndex]
-                    break
-                }
-            }
-
-            else {
-                if (rowIndex == sheet.lastRowNum) break@outer
+            if (cell.cellTypeEnum == CellType.BLANK) {
+                lessonNumberLength++
             }
         }
     }
@@ -108,87 +104,60 @@ fun getLessonNumberCells(sheet: Sheet): MutableList<MutableList<Triple<Int, Int,
     return weeklyLengthList
 }
 
-fun newAlgorithm(wb: Workbook, groupName: String): MutableList<MutableList<LessonModel>>{
-
+fun algorithm(wb: Workbook, groupName: String): MutableList<MutableList<LessonModel>>{
     val weekLessonModel = mutableListOf<MutableList<LessonModel>>()
-
-
     for (sheet in wb){
         val columnNum = findColumn(sheet, groupName)
-
         // If the column number is not found, skip to the next sheet
         if (columnNum == -1) {
             continue
         }
-
         val weekLessonNumberCells = getLessonNumberCells(sheet)
-
         for (dayLessonNumberCells in weekLessonNumberCells){
-
             val dayLessonModel = mutableListOf<LessonModel>()
-
             for (lessonNumberCells in dayLessonNumberCells){
-
                 val (rowIndex, length, lessonNumber) = lessonNumberCells
-
                 val notEmptyCells = mutableListOf<Cell>()
-
                 for (rowNum in rowIndex until rowIndex + length){
-
                     val row = sheet.getRow(rowNum)
                     val cell = row.getCell(columnNum, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK)
-
                     if (cell.cellTypeEnum != CellType.BLANK){
-                        //Добавить проверку на белый текст
                         notEmptyCells.add(cell)
                     }
                 }
-
                 if (notEmptyCells.isEmpty()){
-
                     val names = mutableListOf<String>()
                     val teachers = mutableListOf<String>()
                     val classrooms = mutableListOf<String>()
-
                     names.add("")
                     teachers.add("")
                     classrooms.add("")
-
                     val lesson = LessonModel(lessonNumber, names, teachers, classrooms)
-
                     dayLessonModel.add(lesson)
                 }
-
                 else {
                     val names = mutableListOf<String>()
                     val teachers = mutableListOf<String>()
                     val classrooms = mutableListOf<String>()
-
                     for (index in 0 until notEmptyCells.size){
                         if (index % 2 == 0) names.add(notEmptyCells[index].stringCellValue)
                         else teachers.add(notEmptyCells[index].stringCellValue)
                     }
-
                     for (rowNum in rowIndex until rowIndex + length){
-
                         val row = sheet.getRow(rowNum)
                         val cell = row.getCell(columnNum + 1, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK)
-
                         if (cell.cellTypeEnum == CellType.NUMERIC){
                             val classNum = cell.numericCellValue
                             classrooms.add(classNum.toString())
                         }
-
                         if (cell.cellTypeEnum == CellType.STRING){
                             val classNum = cell.stringCellValue
                             classrooms.add(classNum.toString())
                         }
                     }
-
                     val lesson = LessonModel(lessonNumber, names, teachers, classrooms)
                     dayLessonModel.add(lesson)
                 }
-
             }
             weekLessonModel.add(dayLessonModel)
         }
@@ -204,27 +173,25 @@ fun getFullyMergedRows(sheet: Sheet): MutableList<Int> {
             fullyMergedRows.add(mergedRegion.firstRow)
         }
     }
-    return fullyMergedRows.asReversed()
+    return fullyMergedRows
 }
 
 fun getDates(wb: Workbook): MutableList<String>{
     val dates = mutableListOf<String>()
+    val sheet = wb.getSheetAt(0)
 
-    for (sheet in wb){
+    val list = getFullyMergedRows(sheet)
 
-        val list = getFullyMergedRows(sheet)
-
-        for (rowNum in list){
-            val row = sheet.getRow(rowNum)
-            for (cell in row){
-                if (cell == null) continue
-                else {
-                    dates.add(cell.stringCellValue)
-                    break
-                }
+    for (rowNum in list){
+        val row = sheet.getRow(rowNum)
+        for (cell in row){
+            if (cell == null) continue
+            else {
+                dates.add(cell.stringCellValue)
+                break
             }
         }
     }
-    dates.reverse()
+
     return dates
 }

@@ -16,12 +16,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.schedule.parsing.algorithm
 import com.example.schedule.parsing.getDates
-import com.example.schedule.parsing.newAlgorithm
+import com.example.schedule.parsing.algorithm
 import com.example.schedule.ui.theme.ScheduleTheme
 import org.apache.poi.ss.usermodel.Workbook
 import org.apache.poi.ss.usermodel.WorkbookFactory
@@ -86,7 +84,7 @@ fun InterfaceDraw(context: Context, groupName: String){
                 //newAlgorithm(wb, groupName)
                 //val (fullLessonsInfo, datesInfo) = Pair(algorithm(wb, groupName).first, algorithm(wb,groupName).second)
 
-                val fullLessonsInfo = newAlgorithm(wb, groupName)
+                val fullLessonsInfo = algorithm(wb, groupName)
                 val datesInfo = getDates(wb)
 
                 LessonsList(
