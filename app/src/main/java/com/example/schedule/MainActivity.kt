@@ -76,11 +76,9 @@ fun datesComparison(text1: String, text2: String): String {
 }
 @Composable
 fun GetFilesUrlsAndDownload(context: Context){
-    var parsingDocument by remember { mutableStateOf(true) }
-    var parsingSpreadsheet by remember { mutableStateOf(true) }
+    var parsing by remember { mutableStateOf(true) }
     var downloading by remember { mutableStateOf(true) }
     val coroutineScope = rememberCoroutineScope()
-    //var spreadsheetUrlsAndDatesList = mutableListOf<Pair<String, String>>()
     var spreadsheetUrlsAndDatesList by remember { mutableStateOf(mutableListOf(Pair("", ""))) }
 
     var spreadsheetUrlToDownload by remember{ mutableStateOf("") }
@@ -103,13 +101,6 @@ fun GetFilesUrlsAndDownload(context: Context){
                     Log.d("DOWNLOAD", "An error occurred: $errorMessage")
                 }
             )
-            parsingSpreadsheet = false
-        }
-    }
-
-
-    LaunchedEffect(parsingDocument){
-        coroutineScope.launch {
             extractGoogleDocumentUrlsFromSchedulePage(
                 url = "https://kcpt72.ru/schedule/",
                 onSuccess = {urls ->
@@ -120,11 +111,11 @@ fun GetFilesUrlsAndDownload(context: Context){
                     Log.d("DOWNLOAD", "An error occurred: $errorMessage")
                 }
             )
-            parsingDocument = false
+            parsing = false
         }
     }
 
-    if (!parsingDocument && !parsingSpreadsheet){
+    if (!parsing){
         val dateChoose = datesComparison(text1 = spreadsheetUrlsAndDatesList[0].second, text2 = spreadsheetUrlsAndDatesList[1].second)
 
         val regexPatternForSpreadsheet = "^(https://docs.google.com/spreadsheets/d/[^/]+)/edit.*$".toRegex()
@@ -136,7 +127,7 @@ fun GetFilesUrlsAndDownload(context: Context){
         documentUrlToDownload = documentUrlToDownload.replace(regexPatternForDocument, "$1/export?format=docx")
 
         LaunchedEffect(downloading) {
-            coroutineScope.launch {
+            GlobalScope.launch {
                 downloadFile(spreadsheetUrlToDownload, "weekly.xlsx", context)
                 downloadFile(documentUrlToDownload, "daily.xlsx", context)
                 downloading = false

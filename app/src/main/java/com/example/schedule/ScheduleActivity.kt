@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.example.schedule.parsing.getDates
 import com.example.schedule.parsing.algorithm
 import com.example.schedule.ui.theme.ScheduleTheme
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import org.apache.poi.ss.usermodel.Workbook
 import org.apache.poi.ss.usermodel.WorkbookFactory
@@ -64,10 +65,22 @@ fun readFile(fileName: String, context: Context): File {
 
 @Composable
 fun InterfaceDraw(context: Context, groupName: String){
-    readFilesNames(context)
+    val scope = rememberCoroutineScope()
+    var file: File? by remember { mutableStateOf(null) }
     var downloading by remember { mutableStateOf(true) }
-    val file = readFile("weekly.xlsx", context)
-    if (file.exists()) downloading = false
+    LaunchedEffect(downloading){
+        scope.launch {
+            if (file == null){
+                while (file == null){
+                    file = readFile("weekly.xlsx", context)
+                }
+            }
+            else file = readFile("weekly.xlsx", context)
+            downloading = false
+        }
+    }
+
+    //if (file.exists()) downloading = false
 
     Scaffold(
         topBar = {
@@ -78,32 +91,34 @@ fun InterfaceDraw(context: Context, groupName: String){
             }
         }
     ) {
-        if (!downloading) 
-        {
-            if (file.exists()) {
-                val wb: Workbook = WorkbookFactory.create(file)
-                val fullLessonsInfo = algorithm(wb, groupName)
-                val datesInfo = getDates(wb)
 
-                LessonsList(
-                    fullLessonsInfo,
-                    datesInfo,
-                    onItemClick = { lesson ->
-                        for(lessonName in lesson.lessonName){
-                            val toast = Toast.makeText(context, lessonName, Toast.LENGTH_SHORT)
-                            toast.show()
-                        }
-                    })
-            } else {
-                Column {
-                    Text(text = "file doesn't exist")
-                }
-            }
+        if (!downloading) {
+            val wb: Workbook = WorkbookFactory.create(file)
+            val fullLessonsInfo = algorithm(wb, groupName)
+            val datesInfo = getDates(wb)
+            LessonsList(
+                fullLessonsInfo,
+                datesInfo,
+                onItemClick = { lesson ->
+                    for(lessonName in lesson.lessonName){
+                        val toast = Toast.makeText(context, lessonName, Toast.LENGTH_SHORT)
+                        toast.show()
+                    }
+                })
         } else {
             Column {
-                Text(text = "Обработка")
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)){
+                    Text(text = "Parsing...",
+                        fontSize = 30.sp,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                    )
+                }
             }
         }
+
     }
 }
 @Composable
