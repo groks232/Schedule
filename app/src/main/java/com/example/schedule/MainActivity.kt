@@ -24,16 +24,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.schedule.ui.theme.ScheduleTheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import org.jsoup.Jsoup
 import java.io.File
+import java.io.IOException
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 
 class MainActivity : ComponentActivity() {
@@ -74,6 +74,7 @@ fun datesComparison(text1: String, text2: String): String {
     }
     return "failed"
 }
+@OptIn(DelicateCoroutinesApi::class)
 @Composable
 fun GetFilesUrlsAndDownload(context: Context){
     var parsing by remember { mutableStateOf(true) }
@@ -130,30 +131,47 @@ fun GetFilesUrlsAndDownload(context: Context){
             GlobalScope.launch {
                 downloadFile(spreadsheetUrlToDownload, "weekly.xlsx", context)
                 downloadFile(documentUrlToDownload, "daily.xlsx", context)
-                downloading = false
             }
         }
     }
 }
 
 suspend fun downloadFile(url: String, fileName: String, context: Context) {
-    withContext(Dispatchers.IO) {
-        val client = OkHttpClient()
-        val request = Request.Builder().url(url).build()
-        val response = client.newCall(request).execute()
+    val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
 
+    val request = Request.Builder()
+            .url(url)
+            .build()
+    withContext(Dispatchers.IO){
+        var response: Response? = null
+        var attempts = 0
 
-        val file = File(context.filesDir, fileName)
-        file.outputStream().use { output ->
-            response.body?.byteStream()?.use { input ->
-                input.copyTo(output)
+        while (response == null && attempts < 3){
+            try {
+                response = client.newCall(request).execute()
+            } catch (e: IOException) {
+                attempts++
+                delay(5000) // wait for 5 seconds before retrying
             }
         }
 
-        val filesDirFile = readFile("weekly.xlsx", context)
-        Log.d("DOWNLOAD", "Is file: ${filesDirFile.exists()}")
+        val file = File(context.filesDir, fileName)
+        if (response != null) {
+            file.outputStream().use { output ->
+                response.body?.byteStream()?.use { input ->
+                    input.copyTo(output)
+                }
+            }
+        }
 
-    }
+            val filesDirFile = readFile("weekly.xlsx", context)
+            Log.d("DOWNLOAD", "Is file: ${filesDirFile.exists()}")
+
+        }
 }
 
 suspend fun extractGoogleSpreadsheetUrlsFromSchedulePage(
