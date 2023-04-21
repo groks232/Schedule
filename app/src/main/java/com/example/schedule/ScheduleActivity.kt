@@ -100,44 +100,32 @@ fun InterfaceDraw(context: Context, groupName: String){
     }
 
 
-    var docxFileToDisplay: File? = null
-
     Scaffold(
         topBar = {
             TopAppBar() {
                 Spacer(modifier = Modifier.weight(1f))
                 Text(groupName, fontSize = 22.sp)
                 Spacer(modifier = Modifier.weight(9f))
-                Button(onClick = {
-                    docxFileToDisplay = readFile("daily.docx", context)
-                }) {
-                    Icon(Icons.Filled.ArrowForward, "forwardIcon")
-                }
             }
         }
     ) {
 
         if (!downloading) {
-            if (docxFileToDisplay != null){
-                docxFileToDisplay?.let { DisplayDocxFile(file = it) }
-            }
-            else {
-                val wb: Workbook = WorkbookFactory.create(file)
-                val fullLessonsInfo = algorithm(wb, groupName)
-                val datesInfo = getDates(wb)
-                LessonsList(
-                    fullLessonsInfo,
-                    datesInfo,
-                    onItemClick = { lesson ->
-                        var teachersName = lesson.teacherName[0]
-                        for(teacher in 1 until lesson.teacherName.size){
-                            teachersName += "\n"
-                            teachersName += lesson.teacherName[teacher]
-                        }
-                        val toast = Toast.makeText(context, teachersName, Toast.LENGTH_SHORT)
-                        toast.show()
-                    })
-            }
+            val wb: Workbook = WorkbookFactory.create(file)
+            val fullLessonsInfo = algorithm(wb, groupName)
+            val datesInfo = getDates(wb)
+            LessonsList(
+                fullLessonsInfo,
+                datesInfo,
+                onItemClick = { lesson ->
+                    var teachersName = lesson.teacherName[0]
+                    for(teacher in 1 until lesson.teacherName.size){
+                        teachersName += "\n"
+                        teachersName += lesson.teacherName[teacher]
+                    }
+                    val toast = Toast.makeText(context, teachersName, Toast.LENGTH_SHORT)
+                    toast.show()
+                })
         } else {
             Column {
                 Box(modifier = Modifier

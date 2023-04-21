@@ -54,7 +54,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Composable
 fun datesComparison(text1: String, text2: String): String {
     val dateFormat = DateTimeFormatter.ofPattern("dd.MM.yyyy")
     val pattern = Pattern.compile("\\d{2}\\.\\d{2}\\.\\d{4}")
@@ -77,7 +76,9 @@ fun datesComparison(text1: String, text2: String): String {
 @OptIn(DelicateCoroutinesApi::class)
 @Composable
 fun GetFilesUrlsAndDownload(context: Context){
-    var parsing by remember { mutableStateOf(true) }
+    var parsingDoc by remember { mutableStateOf(true) }
+    var parsingsheet by remember { mutableStateOf(true) }
+
     var downloading by remember { mutableStateOf(true) }
     val coroutineScope = rememberCoroutineScope()
     var spreadsheetUrlsAndDatesList by remember { mutableStateOf(mutableListOf(Pair("", ""))) }
@@ -85,58 +86,57 @@ fun GetFilesUrlsAndDownload(context: Context){
     var spreadsheetUrlToDownload by remember{ mutableStateOf("") }
     var documentUrlToDownload by remember{ mutableStateOf("") }
 
-    LaunchedEffect(spreadsheetUrlsAndDatesList){
-        Log.d("DOWNLOAD", "LaunchedEffect started")
+    SideEffect{
         coroutineScope.launch {
             extractGoogleSpreadsheetUrlsFromSchedulePage(
                 url = "https://kcpt72.ru/schedule/",
                 onSuccess = { urls ->
                     spreadsheetUrlsAndDatesList = urls
-                    urls.forEach { pair ->
-                        val debugUrl = pair.first
-                        val debugText = pair.second
-                        Log.d("SPREADSHEET", "URL: $debugUrl, Text: $debugText")
-                    }
                 },
                 onError = { errorMessage ->
                     Log.d("DOWNLOAD", "An error occurred: $errorMessage")
                 }
             )
+
+            parsingsheet = false
+        }
+
+        coroutineScope.launch {
             extractGoogleDocumentUrlsFromSchedulePage(
                 url = "https://kcpt72.ru/schedule/",
                 onSuccess = {urls ->
-                    for (debugUrl in urls) Log.d("DOCUMENT", debugUrl)
                     documentUrlToDownload = urls[0]
                 },
                 onError = { errorMessage ->
                     Log.d("DOWNLOAD", "An error occurred: $errorMessage")
                 }
             )
-            parsing = false
+
+            parsingDoc = false
         }
-    }
 
-    if (!parsing){
-        val dateChoose = datesComparison(text1 = spreadsheetUrlsAndDatesList[0].second, text2 = spreadsheetUrlsAndDatesList[1].second)
+        if (!parsingsheet && !parsingDoc){
+            val dateChoose = datesComparison(text1 = spreadsheetUrlsAndDatesList[0].second, text2 = spreadsheetUrlsAndDatesList[1].second)
 
-        val regexPatternForSpreadsheet = "^(https://docs.google.com/spreadsheets/d/[^/]+)/edit.*$".toRegex()
-        val regexPatternForDocument = "^(https://docs.google.com/document/d/[^/]+)/edit.*$".toRegex()
+            val regexPatternForSpreadsheet = "^(https://docs.google.com/spreadsheets/d/[^/]+)/edit.*$".toRegex()
+            val regexPatternForDocument = "^(https://docs.google.com/document/d/[^/]+)/edit.*$".toRegex()
 
-        if (dateChoose == "date1") spreadsheetUrlToDownload = spreadsheetUrlsAndDatesList[0].first.replace(regexPatternForSpreadsheet, "$1/export?format=xlsx")
-        else if (dateChoose == "date2") spreadsheetUrlToDownload = spreadsheetUrlsAndDatesList[1].first.replace(regexPatternForSpreadsheet, "$1/export?format=xlsx")
+            if (dateChoose == "date1") spreadsheetUrlToDownload = spreadsheetUrlsAndDatesList[0].first.replace(regexPatternForSpreadsheet, "$1/export?format=xlsx")
+            else if (dateChoose == "date2") spreadsheetUrlToDownload = spreadsheetUrlsAndDatesList[1].first.replace(regexPatternForSpreadsheet, "$1/export?format=xlsx")
 
-        documentUrlToDownload = documentUrlToDownload.replace(regexPatternForDocument, "$1/export?format=docx")
+            documentUrlToDownload = documentUrlToDownload.replace(regexPatternForDocument, "$1/export?format=docx")
 
-        LaunchedEffect(downloading) {
             GlobalScope.launch {
                 downloadFile(spreadsheetUrlToDownload, "weekly.xlsx", context)
+            }
+            GlobalScope.launch {
                 downloadFile(documentUrlToDownload, "daily.xlsx", context)
             }
         }
     }
 }
 
-suspend fun downloadFile(url: String, fileName: String, context: Context) {
+suspend fun downloadFile(url: String, fileName: String, context: Context) = runBlocking{
     val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
@@ -146,7 +146,7 @@ suspend fun downloadFile(url: String, fileName: String, context: Context) {
     val request = Request.Builder()
             .url(url)
             .build()
-    withContext(Dispatchers.IO){
+    launch{
         var response: Response? = null
         var attempts = 0
 
@@ -159,6 +159,7 @@ suspend fun downloadFile(url: String, fileName: String, context: Context) {
             }
         }
 
+        if (response == null) Log.d("ERROR", "prob;ems with downloading")
         val file = File(context.filesDir, fileName)
         if (response != null) {
             file.outputStream().use { output ->
@@ -167,11 +168,7 @@ suspend fun downloadFile(url: String, fileName: String, context: Context) {
                 }
             }
         }
-
-            val filesDirFile = readFile("weekly.xlsx", context)
-            Log.d("DOWNLOAD", "Is file: ${filesDirFile.exists()}")
-
-        }
+    }
 }
 
 suspend fun extractGoogleSpreadsheetUrlsFromSchedulePage(
@@ -179,35 +176,30 @@ suspend fun extractGoogleSpreadsheetUrlsFromSchedulePage(
     onSuccess: (MutableList<Pair<String, String>>) -> Unit,
     onError: (String) -> Unit
 ) {
-    withContext(Dispatchers.IO) {
-        try {
-            val document = Jsoup.connect(url).get()
-            val linkElements = document.select("a[href*=docs.google.com/spreadsheets]")
-
-            if (linkElements.isNotEmpty()) {
-                val urls = mutableListOf<Pair<String, String>>()
-                val pattern = Pattern.compile("https://docs.google.com/spreadsheets/d/.*/edit.*")
-
-                linkElements.forEach { linkElement ->
-                    val linkHref = linkElement.attr("href")
-                    val matcher = pattern.matcher(linkHref)
-
-                    if (matcher.find()) {
-                        val linkText = linkElement.text()
-                        urls.add(Pair(matcher.group(), linkText))
-                    }
+    try {
+        val document = Jsoup.connect(url).get()
+        val linkElements = document.select("a[href*=docs.google.com/spreadsheets]")
+        if (linkElements.isNotEmpty()) {
+            val urls = mutableListOf<Pair<String, String>>()
+            val pattern = Pattern.compile("https://docs.google.com/spreadsheets/d/.*/edit.*")
+            linkElements.forEach { linkElement ->
+                val linkHref = linkElement.attr("href")
+                val matcher = pattern.matcher(linkHref)
+                if (matcher.find()) {
+                    val linkText = linkElement.text()
+                    urls.add(Pair(matcher.group(), linkText))
                 }
-                if (urls.isNotEmpty()) {
-                    onSuccess(urls)
-                } else {
-                    onError("Google Sheets URLs not found in links")
-                }
-            } else {
-                onError("Links to Google Sheets not found on page")
             }
-        } catch (e: Exception) {
-            onError(e.message ?: "Unknown error")
+            if (urls.isNotEmpty()) {
+                onSuccess(urls)
+            } else {
+                onError("Google Sheets URLs not found in links")
+            }
+        } else {
+            onError("Links to Google Sheets not found on page")
         }
+    } catch (e: Exception) {
+        onError(e.message ?: "Unknown error")
     }
 }
 
