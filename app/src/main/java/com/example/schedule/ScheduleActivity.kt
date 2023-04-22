@@ -9,6 +9,7 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,7 +21,10 @@ import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -28,6 +32,7 @@ import com.example.schedule.parsing.getDates
 import com.example.schedule.parsing.algorithm
 import com.example.schedule.ui.theme.ScheduleTheme
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.apache.poi.ss.usermodel.Workbook
 import org.apache.poi.ss.usermodel.WorkbookFactory
@@ -87,7 +92,7 @@ fun InterfaceDraw(context: Context, groupName: String){
     val scope = rememberCoroutineScope()
     var file: File? by remember { mutableStateOf(null) }
     var downloading by remember { mutableStateOf(true) }
-    LaunchedEffect(downloading){
+    SideEffect{
         scope.launch {
             if (file == null){
                 while (file == null){
@@ -109,7 +114,6 @@ fun InterfaceDraw(context: Context, groupName: String){
             }
         }
     ) {
-
         if (!downloading) {
             val wb: Workbook = WorkbookFactory.create(file)
             val fullLessonsInfo = algorithm(wb, groupName)
@@ -127,8 +131,15 @@ fun InterfaceDraw(context: Context, groupName: String){
                     toast.show()
                 })
         } else {
-            Column {
-                Box(modifier = Modifier
+            Column() {
+                CircularProgressIndicator()
+            }
+            /*Column(modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()) {
+
+
+                *//*Box(modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)){
                     Text(text = "Parsing...",
@@ -136,12 +147,31 @@ fun InterfaceDraw(context: Context, groupName: String){
                         modifier = Modifier
                             .align(Alignment.Center)
                     )
-                }
-            }
+                }*//*
+            }*/
+
         }
+    }
+
+    Column() {
 
     }
 }
+
+@Composable
+fun LoadingScreen() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier
+                .size(64.dp)
+                .align(Alignment.CenterVertically)
+        )
+    }
+}
+
 @Composable
 fun LessonsList(fullLessonsInfo: MutableList<MutableList<LessonModel>>, datesInfo: MutableList<String>, onItemClick: (LessonModel) -> Unit) {
     // Flatten the list of lesson models to create a single list of items
@@ -214,4 +244,3 @@ fun LessonView(lesson: LessonModel, onItemClick: (LessonModel) -> Unit) {
         }
     }
 }
-

@@ -3,11 +3,14 @@ package com.example.schedule.parsing
 import com.example.schedule.LessonModel
 import org.apache.poi.ss.usermodel.*
 import org.apache.poi.ss.util.CellAddress
+import org.apache.poi.xssf.usermodel.XSSFCellStyle
+import org.apache.poi.xssf.usermodel.XSSFColor
+
 
 private fun findColumn(sheet: Sheet, cellContent: String): Int {
     for (row in sheet) {
         for (cell in row) {
-            if (cell.cellTypeEnum == CellType.STRING) {
+            if (cell.cellType == CellType.STRING) {
                 if (cell.richStringCellValue.string.trim { it <= ' ' } == cellContent) {
                     return cell.columnIndex
                 }
@@ -35,10 +38,6 @@ fun getLessonNumberCells(sheet: Sheet): MutableList<MutableList<Triple<Int, Int,
     var previousRowIndex = 0
     outer@while(true) {
         for (rowIndex in dayStartRowContent + 3..sheet.lastRowNum) {
-            if (rowIndex == 100) {
-                var a = rowIndex
-                a = 1
-            }
             val row = sheet.getRow(rowIndex)
             val cell = row.getCell(row.firstCellNum.toInt(), Row.MissingCellPolicy.CREATE_NULL_AS_BLANK)
 
@@ -54,20 +53,13 @@ fun getLessonNumberCells(sheet: Sheet): MutableList<MutableList<Triple<Int, Int,
                 if (rowIndex == sheet.lastRowNum) break@outer
             }
 
-            if (cell.cellTypeEnum == CellType.NUMERIC) {
+            if (cell.cellType == CellType.NUMERIC) {
                 if (lessonNumberLength > 0) {
                     //first index, second length, third content
                     lengthList.add(
                         Triple(previousRowIndex,lessonNumberLength, previousCellValue)
                     )
-                    /*if (lessonNumberLength == 1){
 
-                    }
-                    else {
-                        lengthList.add(
-                            Triple(previousRowIndex,lessonNumberLength + 1, previousCellValue)
-                        )
-                    }*/
                     lessonNumberLength = 1
                     previousCellValue = cell.numericCellValue.toInt()
                     previousRowIndex = rowIndex
@@ -81,7 +73,7 @@ fun getLessonNumberCells(sheet: Sheet): MutableList<MutableList<Triple<Int, Int,
                 }
             }
 
-            if (cell.cellTypeEnum == CellType.BLANK) {
+            if (cell.cellType == CellType.BLANK) {
                 lessonNumberLength++
             }
         }
@@ -121,7 +113,7 @@ fun algorithm(wb: Workbook, groupName: String): MutableList<MutableList<LessonMo
                 for (rowNum in rowIndex until rowIndex + length){
                     val row = sheet.getRow(rowNum)
                     val cell = row.getCell(columnNum, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK)
-                    if (cell.cellTypeEnum != CellType.BLANK){
+                    if (cell.cellType != CellType.BLANK){
                         notEmptyCells.add(cell)
                     }
                 }
@@ -146,11 +138,11 @@ fun algorithm(wb: Workbook, groupName: String): MutableList<MutableList<LessonMo
                     for (rowNum in rowIndex until rowIndex + length){
                         val row = sheet.getRow(rowNum)
                         val cell = row.getCell(columnNum + 1, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK)
-                        if (cell.cellTypeEnum == CellType.NUMERIC){
+                        if (cell.cellType == CellType.NUMERIC){
                             val classNum = cell.numericCellValue
                             classrooms.add(classNum.toString())
                         }
-                        if (cell.cellTypeEnum == CellType.STRING){
+                        if (cell.cellType == CellType.STRING){
                             val classNum = cell.stringCellValue
                             classrooms.add(classNum.toString())
                         }
